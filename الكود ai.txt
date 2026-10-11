@@ -1,0 +1,48 @@
+# rooms = ("A", "B", "C")
+
+def reflex_vacuum(percept):
+    location, status = percept
+    if status == "Dirty":
+        return "Suck"
+    elif location == "A":
+        return "Right"
+    else:
+        return "Left"
+
+
+class ModelBasedVacuum:
+    def __init__(self, rooms=("A", "B")):
+        self.rooms = list(rooms)
+        self.known_clean = set()
+
+    def __call__(self, percept):
+        location, status = percept
+        if status == "Dirty":
+            self.known_clean.discard(location)
+            return "Suck"
+        self.known_clean.add(location)
+        if len(self.known_clean) == len(self.rooms):
+            return "NoOp"
+        return "Right" if location == "A" else "Left"
+
+
+print("=== Reflex ===")
+print("score:", run(reflex_vacuum, VacuumEnv(), steps=10, verbose=True))
+print("\n=== Model-based ===")
+print("score:", run(ModelBasedVacuum(), VacuumEnv(), steps=10, verbose=True))
+
+
+
+def evaluate(agent_factory, steps=50, runs=200, **env_kw):
+    return sum(run(agent_factory(), VacuumEnv(seed=s, **env_kw), steps) for s in range(runs)) / runs
+
+settings = {
+    "Deterministic":                dict(),
+    "Dirt comes back (p=0.10)":     dict(p_dirty_again=0.10),
+    "Suck fails (p=0.30)":          dict(p_suck_fail=0.30),
+}
+print(f"{'environment':28}{'Reflex':>10}{'Model-based':>14}")
+for name, kw in settings.items():
+    r = evaluate(lambda: reflex_vacuum, **kw)
+    m = evaluate(lambda: ModelBasedVacuum(), **kw)
+    print(f"{name:28}{r:10.2f}{m:14.2f}")
